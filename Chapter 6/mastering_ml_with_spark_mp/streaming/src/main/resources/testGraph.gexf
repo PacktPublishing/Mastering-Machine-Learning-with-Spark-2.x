@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gexf xmlns="http://www.gexf.net/1.2draft" version="1.2">
+  <meta>
+    <description>A gephi graph in GEXF format</description>
+  </meta>
+    <graph mode="static" defaultedgetype="directed">
+        <nodes>
+<node id="5" label="(franklin,prof)"/>
+<node id="2" label="(istoica,prof)"/>
+<node id="3" label="(rxin,student)"/>
+<node id="7" label="(jgonzal,postdoc)"/>
+</nodes>
+<edges>
+<edge source="3" target="7" label="collab"/>
+<edge source="5" target="3" label="advisor"/>
+<edge source="2" target="5" label="colleague"/>
+<edge source="5" target="7" label="pi"/>
+</edges>
+  </graph>
+</gexf>
+       
