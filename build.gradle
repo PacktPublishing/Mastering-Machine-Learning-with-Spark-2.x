@@ -90,6 +90,27 @@ configure(subprojects) { project ->
     }
 }
 
+// Disable distribution tasks
+gradle.taskGraph.whenReady { graph ->
+    if (!project.hasProperty("doDist")) {
+        graph.allTasks.findAll { it.name ==~ /dist.*/ }*.enabled = false
+    }
+    graph.allTasks.findAll { it.name ==~ /run/ }*.doFirst { 
+        println """
+        ==================================================================================
+        Launching book example for '${project.name}'
+        
+          - The default data directory is: ${project.projectDir}/data
+            - The location can be modified via `DATADIR` shell environment variable.
+            - Please make sure, you downloaded data with `bin/getdata.sh` 
+          
+          - The default model directory is ${project.projectDir}/models
+            - The location can be modified via `MODELSDIR` shell environment variable.
+        ==================================================================================
+        """
+    }
+}
+
 //
 // Setup Gradle wrapper task to obtain latest gradle version
 //
