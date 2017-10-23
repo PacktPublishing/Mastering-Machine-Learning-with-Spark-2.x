@@ -1,0 +1,6 @@
+dependencies {
+    compile project(':mastering-ml-w-spark-utils')
+}
+
+apply plugin: 'application'
+mainClassName = 'com.packtpub.mmlwspark.chapter8.Chapter8'
