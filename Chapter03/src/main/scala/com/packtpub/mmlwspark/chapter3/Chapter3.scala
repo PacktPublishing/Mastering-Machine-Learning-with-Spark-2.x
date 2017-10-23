@@ -1,7 +1,7 @@
-package water.book.chap4
+package com.packtpub.mmlwspark.chapter3
 
 /**
-  * Chapter 3
+  * Mastering Machine Learning With Spark: Chapter 2
   */
 object Chapter3 extends App {
 
@@ -11,7 +11,7 @@ object Chapter3 extends App {
   /* Simulate environment of Spark shell */
   val config = new SparkConf()
     .setMaster("local[*]")
-    .setAppName("Chapter3")
+    .setAppName("Mastering Machine Learning with Spark: Chapter3")
 
   val sc = SparkContext.getOrCreate(config)
   val sqlContext = SparkSession.builder().getOrCreate().sqlContext
@@ -21,8 +21,9 @@ object Chapter3 extends App {
   import sqlContext.implicits._
 
   def script(sc: SparkContext, sqlContext: SQLContext): Unit = {
+    // @Script START
     // @Snippet
-    val path = "../data/*"
+    val path = s"${sys.env.get("DATADIR").getOrElse("data")}/subject*"
     val dataFiles = sc.wholeTextFiles(path)
     println(s"Number of input files: ${dataFiles.count}")
 
@@ -30,14 +31,14 @@ object Chapter3 extends App {
     val allColumnNames = Array(
       "timestamp", "activityId", "hr") ++ Array(
       "hand", "chest", "ankle").flatMap(sensor =>
-                                          Array(
-                                            "temp",
-                                            "accel1X", "accel1Y", "accel1Z",
-                                            "accel2X", "accel2Y", "accel2Z",
-                                            "gyroX", "gyroY", "gyroZ",
-                                            "magnetX", "magnetY", "magnetZ",
-                                            "orient", "orientX", "orientY", "orientZ").
-                                            map(name => s"${sensor}_${name}"))
+        Array(
+          "temp",
+          "accel1X", "accel1Y", "accel1Z",
+          "accel2X", "accel2Y", "accel2Z",
+          "gyroX", "gyroY", "gyroZ",
+          "magnetX", "magnetY", "magnetZ",
+          "orient", "orientX", "orientY", "orientZ").
+          map(name => s"${sensor}_${name}"))
 
     // @Snippet
     val ignoredColumns =
@@ -49,26 +50,27 @@ object Chapter3 extends App {
     // @Snippet
     val rawData = dataFiles.flatMap { case (path, content) =>
       content.split("\n")
-                                    }.map { row =>
+    }.map { row =>
       row.split(" ").
         map(_.trim).
         map(v => if (v.toUpperCase == "NAN") Double.NaN else v.toDouble).
         zipWithIndex.
         collect {
-                  case (cell, idx) if !ignoredColumns.contains(idx) => cell
-                }
-                                          }
+          case (cell, idx) if !ignoredColumns.contains(idx) => cell
+        }
+    }
     rawData.cache()
 
     println(s"Number of rows: ${rawData.count}")
 
     // @Snippet
+    import com.packtpub.mmlwspark.utils.Tabulizer.table
     val columnNames = allColumnNames.
       zipWithIndex.
       filter { case (_, idx) => !ignoredColumns.contains(idx) }.
       map { case (name, _) => name }
 
-    println(s"Column names:\n${columnNames.mkString(", ")}")
+    println(s"Column names:${table(columnNames, 4, None)}")
 
     // @Snippet
     val activitiesMap = Map(
@@ -90,19 +92,18 @@ object Chapter3 extends App {
       collect.
       sortBy { case (activityId, count) =>
         -count
-             }.map { case (activityId, count) =>
+    }.map { case (activityId, count) =>
       (activitiesMap(activityId), count)
-                   }
+    }
 
-    println(s"""|Activities distribution:
-                |${activityCounts.mkString("\n")}""".stripMargin)
+    println(s"Activities distribution:${table({activityCounts})}")
 
     // @Snippet
     val nanCountPerRow = rawData.map { row =>
       row.foldLeft(0) { case (acc, v) =>
         acc + (if (v.isNaN) 1 else 0)
-                      }
-                                     }
+      }
+    }
     val nanTotalCount = nanCountPerRow.sum
     val ncols = rawData.take(1)(0).length
     val nrows = rawData.count
@@ -115,9 +116,9 @@ object Chapter3 extends App {
     // @Snippet
     val nanRowDistribution = nanCountPerRow.
       map( count => (count, 1)).
-      reduceByKey(_ + _).sortBy(-_._1)
+      reduceByKey(_ + _).sortBy(-_._1).collect
 
-    println(s"#NaN / #Rows \n${nanRowDistribution.collect.mkString("\n")}")
+    println(s"${table(Seq("#NaN","#Rows"), nanRowDistribution, Map.empty[Int, String])}")
 
     // @Snippet
     val nanRowThreshold = 26
@@ -127,10 +128,11 @@ object Chapter3 extends App {
     // @Snippet
     val nanCountPerColumn = rawData.map { row =>
       row.map(v => if (v.isNaN) 1 else 0)
-                                        }.reduce((v1, v2) => v1.indices.map(i => v1(i) + v2(i)).toArray)
+    }.reduce((v1, v2) => v1.indices.map(i => v1(i) + v2(i)).toArray)
 
-    println(s"Number of missing values per column:\n${columnNames.zip(nanCountPerColumn).mkString(", ")}")
-    println(s"${columnNames.zip(nanCountPerColumn).map(v => "(%s, %.2f%%)".format(v._1, 100.0 * v._2 / nrows)).mkString(", ")}")
+    println(s"""Number of missing values per column:
+         ^${table(columnNames.zip(nanCountPerColumn).map(t => (t._1, t._2, "%.2f%%".format(100.0 * t._2 / nrows))).sortBy(-_._2))}
+         ^""".stripMargin('^'))
 
     // @Snippet
     val heartRateColumn = rawData.
@@ -161,36 +163,39 @@ object Chapter3 extends App {
       val activityId = row(0).toInt
       row.drop(1).map { v =>
         if (v.isNaN) inc(distribTemplate, (activityId, 1)) else distribTemplate
-                      } // Tip: Make sure that we are returning same type
+      } // Tip: Make sure that we are returning same type
     }.reduce { (v1, v2) =>  // (2)
       v1.indices.map(idx => v1(idx).foldLeft(v2(idx))(inc)).toArray
     }
 
-    println(s"""|NaN Column x Response distribution:
-                |column, ${distribTemplate.map(v => activitiesMap(v._1)).mkString(", ")}
-                |${columnNames.drop(1).zip(nanColumnDistribV1).map(v => v._1 + ", " + v._2.map(_._2).mkString(", ")).mkString("\n")}""".stripMargin)
+    println(s"""
+            ^NaN Column x Response distribution V1:
+            ^${table(Seq(distribTemplate.map(v => activitiesMap(v._1)))
+                     ++ columnNames.drop(1).zip(nanColumnDistribV1).map(v => Seq(v._1) ++ v._2.map(_._2)), true)}
+              """.stripMargin('^'))
 
     // @Snippet
     val nanColumnDistribV2 = rawData.map(row => {
       val activityId = row(0).toInt
       (activityId, row.drop(1).map(v => if (v.isNaN) 1 else 0))
     }).reduceByKey( (v1, v2) =>
-                      v1.indices.map(idx => v1(idx) + v2(idx)).toArray
+      v1.indices.map(idx => v1(idx) + v2(idx)).toArray
     ).map { case (activityId, d) =>
       (activitiesMap(activityId), d)
-          }.collect
+    }.collect
 
-    println(s"""|NaN Column x Response distribution:
-                |${columnNames.mkString(",")}
-                |${nanColumnDistribV2.map(v=>v._1 + "," + v._2.mkString(",")).mkString("\n")}""".stripMargin)
+    println(s"""
+            ^NaN Column x Response distribution V2:
+            ^${table(Seq(columnNames.toSeq) ++ nanColumnDistribV2.map(v => Seq(v._1) ++ v._2), true)}
+            """.stripMargin('^'))
 
     // @Snippet
     val imputedValues = columnNames.map {
-                                          _ match {
-                                            case "hr" => 60.0
-                                            case _ => 0.0
-                                          }
-                                        }
+      _ match {
+        case "hr" => 60.0
+        case _ => 0.0
+      }
+    }
 
     // @Snippet
     import org.apache.spark.rdd.RDD
@@ -201,8 +206,8 @@ object Chapter3 extends App {
         row.indices.map { i =>
           if (row(i).isNaN) values(i)
           else row(i)
-                        }.toArray
-               }
+        }.toArray
+      }
     }
 
     // @Snippet
@@ -212,9 +217,9 @@ object Chapter3 extends App {
                        nanThreshold: Int): RDD[Array[Double]] = {
       rdd.zip(nanCountPerRow).filter { case (row, nanCount) =>
         nanCount < nanThreshold
-                                     }.map { case (row, _) =>
+      }.map { case (row, _) =>
         row
-                                           }
+      }
     }
 
     // @Snippet
@@ -233,21 +238,19 @@ object Chapter3 extends App {
     println(s"Number of rows before/after: ${rawData.count} / ${processedRawData.count}")
 
     // @Snippet
-    import org.apache.spark.mllib
     import org.apache.spark.mllib.regression.LabeledPoint
     import org.apache.spark.mllib.linalg.Vectors
     import org.apache.spark.mllib.tree.RandomForest
-    import org.apache.spark.mllib.util.MLUtils
 
     val data = processedRawData.map { r =>
       val activityId = r(0).toInt
       val activityIdx = activityId2Idx(activityId)
       val features = r.drop(1)
       LabeledPoint(activityIdx, Vectors.dense(features))
-                                    }
+    }
 
     // @Snippet
-    val splits = data.randomSplit(Array(0.8, 0.2))
+    val splits = data.randomSplit(Array(0.8, 0.2), seed = 42)
     val (trainingData, testData) = (splits(0), splits(1))
 
     // @Snippet
@@ -311,10 +314,11 @@ object Chapter3 extends App {
     val rfCMActDist = (0 until rfCM.numRows).map(rowSum(rfCM, _)/rfCMTotal)
     val rfCMPredDist = (0 until rfCM.numCols).map(colSum(rfCM, _)/rfCMTotal)
 
-    println(s"""|Class distribution
-                |Class, Actual, Predicted
-                |${rfCMLabels.zip(rfCMActDist.zip(rfCMPredDist).map(p => f"${p._1*100}%.2f%%, ${p._2*100}%.2f%%")).mkString("\n")}
-  """.stripMargin)
+    println(s"""^Class distribution
+                ^${table(Seq("Class", "Actual", "Predicted"),
+                         rfCMLabels.zip(rfCMActDist.zip(rfCMPredDist)).map(p => (p._1, p._2._1, p._2._2)),
+                         Map(1 -> "%.2f", 2 -> "%.2f"))}
+              """.stripMargin('^'))
 
     // @Snippet
     def rfPrecision(m: Matrix, feature: Int) = m(feature, feature) / colSum(m, feature)
@@ -323,16 +327,18 @@ object Chapter3 extends App {
 
     val rfPerClassSummary = rfCMLabels.indices.map { i =>
       (rfCMLabels(i), rfRecall(rfCM, i), rfPrecision(rfCM, i), rfF1(rfCM, i))
-                                                   }
+    }
 
-    println(s"""|Per class summary
-                |Label, Recall, Precision, F-1
-                |${rfPerClassSummary.map(r => f"${r._1}%s, ${r._2}%.4f, ${r._3}%.4f, ${r._4}%.4f").mkString("\n")}""".stripMargin)
+    println(s"""^Per class summary:
+                ^${table(Seq("Label", "Recall", "Precision", "F-1"),
+                         rfPerClassSummary,
+                         Map(1 -> "%.4f", 2 -> "%.4f", 3 -> "%.4f"))}
+              """.stripMargin('^'))
 
     // @Snippet
     val rfPerClassSummary2 = rfCMLabels.indices.map { i =>
       (rfCMLabels(i), rfModelMetrics.recall(i), rfModelMetrics.precision(i), rfModelMetrics.fMeasure(i))
-                                                    }
+    }
 
     // @Snippet
     val rfMacroRecall = rfCMLabels.indices.map(i => rfRecall(rfCM, i)).sum/rfCMLabels.size
@@ -392,9 +398,11 @@ object Chapter3 extends App {
     testHF.update()
 
     // @Snippet
-    println(s"""|Distribution of activitiId:
-                |${testData.map(row => (row.label, 1)).reduceByKey(_ + _).collect.sortBy(_._1).mkString(", ")}
-                |""".stripMargin)
+    println(s"""^Distribution of activityId:
+                ^${table(Seq("activityId", "Count"),
+                         testData.map(row => (row.label, 1)).reduceByKey(_ + _).collect.sortBy(_._1),
+                         Map.empty[Int, String])}
+                """.stripMargin('^'))
 
     // @Snippet
     trainHF.replace(0, trainHF.vec(0).toCategoricalVec).remove
@@ -445,11 +453,13 @@ object Chapter3 extends App {
     // @Snippet
     val drfPerClassSummary = drfCM._domain.indices.map { i =>
       (drfCM._domain(i), rfRecall(drfSparkCM, i), rfPrecision(drfSparkCM, i), rfF1(drfSparkCM, i))
-                                                       }
+    }
 
-    println(s"""|Per class summary
-                |Label, Recall, Precision, F-1
-                |${drfPerClassSummary.map(r => f"${r._1}%s, ${r._2}%.4f, ${r._3}%.4f, ${r._4}%.4f").mkString("\n")}""".stripMargin)
+    println(s"""^Per class summary
+                ^${table(Seq("Label", "Recall", "Precision", "F-1"),
+                         drfPerClassSummary,
+                         Map(1 -> "%.4f", 2 -> "%.4f", 3 -> "%.4f"))}
+              """.stripMargin('^'))
 
     // @Snippet
     drfParams._ntrees = 20
@@ -459,5 +469,6 @@ object Chapter3 extends App {
     val drfModel20 = new DRF(drfParams, make[DRFModel]("drfModel20")).trainModel.get
 
     println(s"Number of trees: ${drfModel20._output._ntrees}")
+    // @Script END
   }
 }
