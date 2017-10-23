@@ -1,0 +1,28 @@
+// Publish this module
+apply from: "$rootDir/gradle/publish.gradle"
+apply plugin: 'com.github.johnrengelman.shadow'
+
+dependencies {
+    compileOnly "no.priv.garshol.duke:duke:1.2"
+}
+
+jar {
+    enabled = false
+}
+
+shadowJar {
+    archiveName = jar.archiveName
+    dependencies {
+        configurations = [project.configurations.compileOnly]
+    }
+}
+
+artifacts {
+    archives shadowJar
+}
+
+jar.dependsOn shadowJar
+build.dependsOn shadowJar
+
+
+

@@ -1,9 +1,9 @@
-package org.apache.spark.book.examples
+package com.packtpub.mmlwspark.chapter2
 
 /**
-  * Chapter 2
+  * Mastering Machine Learning With Spark: Chapter 2
   */
-object Chapter2 extends {
+object Chapter2 extends App {
 
   import org.apache.spark.{SparkConf,  SparkContext}
   import org.apache.spark.sql.{SQLContext, SparkSession}
@@ -11,7 +11,7 @@ object Chapter2 extends {
   /* Simulate environment of Spark shell */
   val config = new SparkConf()
     .setMaster("local[*]")
-    .setAppName("Chapter2")
+    .setAppName("Mastering Machine Learning with Spark: Chapter2")
 
   val sc = SparkContext.getOrCreate(config)
   val sqlContext = SparkSession.builder().getOrCreate().sqlContext
@@ -21,6 +21,7 @@ object Chapter2 extends {
   import sqlContext.implicits._
 
   def script(sc: SparkContext, sqlContext: SQLContext): Unit = {
+    // @Script START
     // @Snippet
     import org.apache.spark.rdd.RDD
     import org.apache.spark.mllib.regression.LabeledPoint
@@ -30,11 +31,12 @@ object Chapter2 extends {
     import org.apache.spark.mllib.tree._
 
     // @Snippet
-    val rawData = sc.textFile("/tmp/data.csv")
-    rawData.count
+    val rawData = sc.textFile(s"${sys.env.get("DATADIR").getOrElse("data")}/higgs100k.csv")
+    println(s"Number of rows: ${rawData.count}")
 
     // @Snippet
-    rawData.take(2)
+    println("Rows")
+    println(rawData.take(2).mkString("\n"))
 
     // @Snippet
     val data = rawData.map(line => line.split(',').map(_.toDouble))
@@ -48,12 +50,13 @@ object Chapter2 extends {
     val featuresSummary = featuresMatrix.computeColumnSummaryStatistics()
 
     // @Snippet
-    println(s"Higgs Features Mean Values = ${featuresSummary.mean}")
-    println(s"Higgs Features Variance Values = ${featuresSummary.variance}")
+    import com.packtpub.mmlwspark.utils.Tabulizer.table
+    println(s"Higgs Features Mean Values = ${table(featuresSummary.mean, 8)}")
+    println(s"Higgs Features Variance Values = ${table(featuresSummary.variance, 8)}")
 
     // @Snippet
     val nonZeros = featuresSummary.numNonzeros
-    println(s"Non-zero values count per column: $nonZeros")
+    println(s"Non-zero values count per column: ${table(nonZeros, cols = 8, format = "%.0f")}")
 
     // @Snippet
     val numRows = featuresMatrix.numRows
@@ -62,15 +65,19 @@ object Chapter2 extends {
       .toArray
       .zipWithIndex
       .filter { case (rows, idx) => rows != numRows }
+    println(s"Columns with zeros:\n${table(Seq("#zeros", "column"), colsWithZeros, Map.empty[Int, String])}")
 
     // @Snippet
     val sparsity = nonZeros.toArray.sum / (numRows * numCols)
+    println(f"Data sparsity: ${sparsity}%.2f")
 
     // @Snippet
-    response.distinct.collect
+    val responseValues = response.distinct.collect
+    println(s"Response values: ${responseValues.mkString(", ")}")
 
     // @Snippet
-    response.map(v => (v,1)).countByKey
+    val responseDistribution = response.map(v => (v,1)).countByKey
+    println(s"Response distribution:\n${table(responseDistribution)}")
 
     // @Snippet
     import org.apache.spark.h2o._
@@ -112,7 +119,7 @@ object Chapter2 extends {
     val treeLabelAndPreds = testData.map { point =>
       val prediction = dtreeModel.predict(point.features)
       (point.label.toInt, prediction.toInt)
-                                         }
+    }
 
     val treeTestErr = treeLabelAndPreds.filter(r => r._1 != r._2).count.toDouble / testData.count()
     println(f"Tree Model: Test Error = ${treeTestErr}%.3f")
@@ -158,8 +165,17 @@ object Chapter2 extends {
     val impurity = "gini"
     val maxDepth = 5
     val maxBins = 10
+    val seed = 42
 
-    val rfModel = RandomForest.trainClassifier(trainingData, numClasses, categoricalFeaturesInfo, numTrees, featureSubsetStrategy, impurity, maxDepth, maxBins)
+    val rfModel = RandomForest.trainClassifier(trainingData,
+                                               numClasses,
+                                               categoricalFeaturesInfo,
+                                               numTrees,
+                                               featureSubsetStrategy,
+                                               impurity,
+                                               maxDepth,
+                                               maxBins,
+                                               seed)
 
     // @Snippet
     def computeError(model: Predictor, data: RDD[LabeledPoint]): Double = {
@@ -189,10 +205,15 @@ object Chapter2 extends {
       val gridErr = computeError(gridModel, testData)
       ((gridNumTrees, gridImpurity, gridDepth, gridBins), gridAUC, gridErr)
     }
+    // @Snippet
+    println(
+      s"""RF Model: Grid results:
+         ~${table(Seq("trees, impurity, depth, bins", "AUC", "error"), rfGrid, format = Map(1 -> "%.3f", 2 -> "%.3f"))}
+       """.stripMargin('~'))
 
     // @Snippet
     val rfParamsMaxAUC = rfGrid.maxBy(g => g._2)
-    println(f"Parameters ${rfParamsMaxAUC._1}%s producing max AUC = ${rfParamsMaxAUC._2}%.3f (error = ${rfParamsMaxAUC._3}%.3f)")
+    println(f"RF Model: Parameters ${rfParamsMaxAUC._1}%s producing max AUC = ${rfParamsMaxAUC._2}%.3f (error = ${rfParamsMaxAUC._3}%.3f)")
 
     // @SkipCode
     println("""|
@@ -202,15 +223,14 @@ object Chapter2 extends {
     // @Snippet
     import org.apache.spark.mllib.tree.GradientBoostedTrees
     import org.apache.spark.mllib.tree.configuration.BoostingStrategy
-    import org.apache.spark.mllib.tree.model.GradientBoostedTreesModel
-    import org.apache.spark.mllib.util.MLUtils
+    import org.apache.spark.mllib.tree.configuration.Algo
 
-    val gbmStrategy = BoostingStrategy.defaultParams("Classification")
+    val gbmStrategy = BoostingStrategy.defaultParams(Algo.Classification)
     gbmStrategy.setNumIterations(10)
+    gbmStrategy.setLearningRate(0.1)
     gbmStrategy.treeStrategy.setNumClasses(2)
     gbmStrategy.treeStrategy.setMaxDepth(10)
-    gbmStrategy.setLearningRate(0.1)
-    gbmStrategy.treeStrategy.setCategoricalFeaturesInfo(Map[Int, Int]())
+    gbmStrategy.treeStrategy.setCategoricalFeaturesInfo(java.util.Collections.emptyMap[Integer, Integer])
 
     val gbmModel = GradientBoostedTrees.train(trainingData, gbmStrategy)
 
@@ -224,9 +244,9 @@ object Chapter2 extends {
     // @Snippet
     val gbmGrid =
     for (
-      gridNumIterations <- Array(5, 10, 50, 100);
+      gridNumIterations <- Array(5, 10, 50);
       gridDepth <- Array(2, 3, 5, 7);
-      gridLearningRate <- Array(0.1, 0.01, 0.001))
+      gridLearningRate <- Array(0.1, 0.01))
       yield {
         gbmStrategy.setNumIterations(gridNumIterations)
         gbmStrategy.treeStrategy.setMaxDepth(gridDepth)
@@ -239,8 +259,14 @@ object Chapter2 extends {
       }
 
     // @Snippet
+    println(
+      s"""GBM Model: Grid results:
+         ~${table(Seq("iterations, depth, learningRate", "AUC", "error"), gbmGrid.sortBy(-_._2).take(10), format = Map(1 -> "%.3f", 2 -> "%.3f"))}
+       """.stripMargin('~'))
+
+    // @Snippet
     val gbmParamsMaxAUC = gbmGrid.maxBy(g => g._2)
-    println(f"Parameters ${gbmParamsMaxAUC._1}%s producing max AUC = ${gbmParamsMaxAUC._2}%.3f (error = ${gbmParamsMaxAUC._3}%.3f)")
+    println(f"GBM Model: Parameters ${gbmParamsMaxAUC._1}%s producing max AUC = ${gbmParamsMaxAUC._2}%.3f (error = ${gbmParamsMaxAUC._3}%.3f)")
 
     // @SkipCode
     println("""|
@@ -253,9 +279,9 @@ object Chapter2 extends {
 
     // @Snippet
     trainingHF.replace(0, trainingHF.vecs()(0).toCategoricalVec).remove()
-    water.DKV.put(trainingHF)
+    trainingHF.update()
     testHF.replace(0, testHF.vecs()(0).toCategoricalVec).remove()
-    water.DKV.put(testHF)
+    testHF.update()
 
     // @Snippet
     import _root_.hex.deeplearning._
@@ -275,7 +301,7 @@ object Chapter2 extends {
     val dlModel = dlBuilder.trainModel.get
 
     // @Snippet
-    print(dlModel)
+    println(s"DL Model: ${dlModel}")
 
     // @Snippet
     val testPredictions = dlModel.score(testHF)
@@ -286,5 +312,6 @@ object Chapter2 extends {
     val dlMetrics = modelMetrics[ModelMetricsBinomial](dlModel, testHF)
 
     println(dlMetrics)
+    // @Script END
   }
 }
