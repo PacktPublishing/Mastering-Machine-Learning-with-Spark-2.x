@@ -1,0 +1,10 @@
+dependencies {
+}
+
+// This is main class for chapter2
+apply plugin: 'application'
+// Possible examples:
+//mainClassName = 'com.github.maxpumperla.ml_spark.streaming.MSNBCStreamingAdvanced'
+//mainClassName = 'com.github.maxpumperla.ml_spark.streaming.MSNBCStreamingExample'
+mainClassName = 'com.github.maxpumperla.ml_spark.streaming.MSNBCPatternMining'
+applicationDefaultJvmArgs = ['-Xmx4g']
