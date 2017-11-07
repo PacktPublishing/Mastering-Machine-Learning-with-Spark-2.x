@@ -1,0 +1,8 @@
+dependencies {
+    compile project(':mastering-ml-w-spark-utils')
+}
+
+// This is main class for chapter3
+apply plugin: 'application'
+mainClassName = 'com.packtpub.mmlwspark.chapter3.Chapter3'
+applicationDefaultJvmArgs = ['-Xmx8g -XX:MaxPermSize=384M']

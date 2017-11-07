@@ -1,0 +1,16 @@
+dependencies {
+}
+
+// This is main class for chapter2
+apply plugin: 'application'
+// Possible examples:
+//mainClassName = 'com.github.maxpumperla.ml_spark.utils.Gephi.scala'
+//mainClassName = 'com.github.maxpumperla.ml_spark.graphs.GraphFramesExample.scala'
+//mainClassName = 'com.github.maxpumperla.ml_spark.graphs.PregelTest.scala'
+//mainClassName = 'com.github.maxpumperla.ml_spark.graphs.GraphFromEdges.scala'
+//mainClassName = 'com.github.maxpumperla.ml_spark.graphs.GraphGeneration.scala'
+//mainClassName = 'com.github.maxpumperla.ml_spark.graphs.GephiApp.scala'
+//mainClassName = 'com.github.maxpumperla.ml_spark.graphs.ConnectedComponents.scala'
+//mainClassName = 'com.github.maxpumperla.ml_spark.graphs.GraphFromRdd.scala'
+mainClassName = 'com.github.maxpumperla.ml_spark.graphs.GraphFramesExample'
+applicationDefaultJvmArgs = ['-Xmx4g']

@@ -1,0 +1,16 @@
+rootProject.name = 'Mastering-Machine-Learning-with-Spark-2.x'
+
+include 'Chapter02'
+include 'Chapter03'
+include 'Chapter04'
+include 'Chapter05'
+include 'Chapter06'
+include 'Chapter07'
+include 'Chapter08'
+include 'utils'
+
+// Prefix all projects by `mastering-ml-w-spark`
+rootProject.children.each { project ->
+    project.name = "mastering-ml-w-spark-${project.name.toLowerCase()}"
+}
+

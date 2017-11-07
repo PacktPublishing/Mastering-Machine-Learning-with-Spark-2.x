@@ -1,0 +1,8 @@
+dependencies {
+    compile project(':mastering-ml-w-spark-utils')
+}
+
+// This is main class for chapter2
+apply plugin: 'application'
+mainClassName = 'com.packtpub.mmlwspark.chapter2.Chapter2'
+applicationDefaultJvmArgs = ['-Xmx4g']

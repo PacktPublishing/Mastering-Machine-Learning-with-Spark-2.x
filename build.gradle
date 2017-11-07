@@ -1,0 +1,120 @@
+/*
+ * This is a simple build file for building Sparkling Water applications.
+ *
+ * For more details please follow README.md.
+ */
+
+// Apply the java plugin to add support for Java
+apply plugin: 'base'
+
+// Extend build with 3rd party plugins
+buildscript {
+    repositories {
+        mavenCentral()
+        jcenter()
+    }
+
+    dependencies {
+        classpath 'com.bmuschko:gradle-nexus-plugin:2.3.1'
+        classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.0'
+    }
+}
+
+configure(allprojects) { project ->
+    apply plugin: 'idea'
+    apply plugin: 'eclipse'
+
+    //
+    // Configure project properties
+    //
+    ext {
+        // Spark version
+        sparkVersion = '2.1.1'
+        sparklingWaterVersion = "2.1.12"
+
+        // Scala binary version
+        scalaBaseVersion = '2.11'
+        scalaVersion = '2.11.8'
+    }
+}
+
+configure(subprojects) { project ->
+    // All subprojects are scala projects
+    apply plugin: 'scala'
+
+    // Common dependencies
+    repositories {
+        // Use 'maven central' for resolving your dependencies.
+        // You can declare any Maven/Ivy/file repository here.
+        mavenCentral()
+
+        // Enable if necessary
+        mavenLocal()
+    }
+
+    dependencies {
+        // Spark dependencies
+        compile("org.apache.spark:spark-core_${scalaBaseVersion}:${sparkVersion}")
+        compile("org.apache.spark:spark-sql_${scalaBaseVersion}:${sparkVersion}")
+        compile("org.apache.spark:spark-mllib_${scalaBaseVersion}:${sparkVersion}")
+        compile("org.apache.spark:spark-streaming_${scalaBaseVersion}:${sparkVersion}")
+
+        // SW dependency
+        compile("ai.h2o:sparkling-water-core_${scalaBaseVersion}:${sparklingWaterVersion}")
+        compile("ai.h2o:sparkling-water-examples_${scalaBaseVersion}:${sparklingWaterVersion}")
+        compile("ai.h2o:sparkling-water-ml_${scalaBaseVersion}:${sparklingWaterVersion}")
+        compile("ai.h2o:sparkling-water-repl_${scalaBaseVersion}:${sparklingWaterVersion}")
+
+        // Scala project needs dependency on Scala library
+        compile "org.scala-lang:scala-library:$scalaVersion"
+
+        // And use scalatest for Scala testing
+        testCompile "org.scalatest:scalatest_${scalaBaseVersion}:3.0.3"
+    }
+
+    // Base version should contain scala version
+    project.archivesBaseName = "${project.name}_${scalaBaseVersion}"
+
+    //
+    // Setup Scala plugin
+    //
+    tasks.withType(ScalaCompile) {
+        scalaCompileOptions.additionalParameters = [
+                "-target:jvm-1.6",
+                "-feature",
+                "-language:reflectiveCalls",
+                "-language:postfixOps",
+                "-language:existentials",
+                "-language:implicitConversions",
+                ]
+    }
+}
+
+// Disable distribution tasks
+gradle.taskGraph.whenReady { graph ->
+    if (!project.hasProperty("doDist")) {
+        graph.allTasks.findAll { it.name ==~ /dist.*/ }*.enabled = false
+    }
+    graph.allTasks.findAll { it.name ==~ /run/ }*.doFirst { 
+        println """
+        ==================================================================================
+        Launching book example for '${project.name}'
+        
+          - The default data directory is: ${project.projectDir}/data
+            - The location can be modified via `DATADIR` shell environment variable.
+            - Please make sure, you downloaded data with `bin/getdata.sh` 
+          
+          - The default model directory is ${project.projectDir}/models
+            - The location can be modified via `MODELSDIR` shell environment variable.
+        ==================================================================================
+        """
+    }
+}
+
+//
+// Setup Gradle wrapper task to obtain latest gradle version
+//
+task wrapper(type: Wrapper) {
+    gradleVersion = '4.2.1'
+}
+

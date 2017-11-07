@@ -1,0 +1,39 @@
+// Ignore gradle cache
+.gradle/
+
+// Ignore Idea settings
+.idea/
+*.iml
+*.ipr
+*.iws
+
+// Ignore class file
+*.class
+
+// Ignore private and temps by default
+private/
+tmp/
+
+// Ignore vim swap 
+*.swp
+
+// Ignore build dirs
+out/
+build/
+
+// Ignore Eclipse project files
+.classpath
+.project
+.settings/
+
+// Ignore h2ologs
+h2ologs/
+
+// Spark temps
+spark-warehouse/
+metastore_db/
+derby.log
+
+// OSX files
+__MACOSX/
+._.DS_Store
