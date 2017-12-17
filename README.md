@@ -63,6 +63,3 @@ via Gradle, for example:
 * [Large Scale Machine Learning with Spark](https://www.packtpub.com/big-data-and-business-intelligence/large-scale-machine-learning-spark?utm_source=github&utm_medium=repository&utm_campaign=9781785888748)
 
 * [Machine Learning with Spark](https://www.packtpub.com/big-data-and-business-intelligence/machine-learning-spark?utm_source=github&utm_medium=repository&utm_campaign=9781783288519)
-
-## Suggestions and Feedback
-[Click here](https://docs.google.com/forms/d/e/1FAIpQLSe5qwunkGf6PUvzPirPDtuy1Du5Rlzew23UBp2S-P3wB-GcwQ/viewform) if you have any feedback or suggestions.
